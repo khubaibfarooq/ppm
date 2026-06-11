@@ -239,4 +239,205 @@ class ShiftClosingServiceTest extends TestCase
         $invEntry = $entries->firstWhere('account_id', $invAcc->id);
         $this->assertEquals(15000.00, $invEntry->credit);
     }
+
+    public function test_shift_closing_via_controller_with_supplies_and_custom_readings(): void
+    {
+        // 1. Setup Station & User
+        $station = Station::create([
+            'name' => 'Model Town Station 2',
+            'location' => 'Lahore',
+        ]);
+
+        $user = User::factory()->create([
+            'station_id' => $station->id,
+        ]);
+
+        // Authenticate the user
+        $this->actingAs($user);
+
+        // 2. Setup Chart of Accounts
+        $cashAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'Cash',
+            'code' => '1010',
+            'type' => 'asset',
+            'normal_balance' => 'debit',
+        ]);
+
+        $revAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'Sales Revenue',
+            'code' => '4010',
+            'type' => 'revenue',
+            'normal_balance' => 'credit',
+        ]);
+
+        $cogsAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'COGS',
+            'code' => '5010',
+            'type' => 'expense',
+            'normal_balance' => 'debit',
+        ]);
+
+        $invAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'Inventory',
+            'code' => '1210',
+            'type' => 'asset',
+            'normal_balance' => 'debit',
+        ]);
+
+        $shortAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'Cash Shortage',
+            'code' => '5090',
+            'type' => 'expense',
+            'normal_balance' => 'debit',
+        ]);
+
+        // AP account for deliveries
+        $apAcc = ChartOfAccount::create([
+            'station_id' => $station->id,
+            'name' => 'Accounts Payable',
+            'code' => '2100',
+            'type' => 'liability',
+            'normal_balance' => 'credit',
+        ]);
+
+        // 3. Configure Station Settings
+        Setting::create([
+            'station_id' => $station->id,
+            'key' => 'cash_account_id',
+            'value' => (string) $cashAcc->id,
+        ]);
+
+        Setting::create([
+            'station_id' => $station->id,
+            'key' => 'cash_short_account_id',
+            'value' => (string) $shortAcc->id,
+        ]);
+
+        // 4. Setup Products, Tanks, Machines, Nozzles, Suppliers
+        $product = Product::create([
+            'station_id' => $station->id,
+            'name' => 'Super Diesel',
+            'type' => 'fuel',
+            'code' => 'DSL-001',
+            'current_price' => 200.00,
+            'current_cost' => 150.00,
+            'revenue_account_id' => $revAcc->id,
+            'cogs_account_id' => $cogsAcc->id,
+            'inventory_account_id' => $invAcc->id,
+        ]);
+
+        $tank = Tank::create([
+            'station_id' => $station->id,
+            'product_id' => $product->id,
+            'name' => 'Diesel Tank Main',
+            'capacity_liters' => 50000.00,
+            'current_liters' => 30000.00,
+        ]);
+
+        // Dip calibration
+        TankDipChart::create(['tank_id' => $tank->id, 'dip_mm' => 100, 'liters' => 10000.0]);
+        TankDipChart::create(['tank_id' => $tank->id, 'dip_mm' => 200, 'liters' => 20000.0]);
+        TankDipChart::create(['tank_id' => $tank->id, 'dip_mm' => 300, 'liters' => 30000.0]);
+
+        $machine = Machine::create([
+            'station_id' => $station->id,
+            'name' => 'Dispenser #1',
+            'status' => 'active',
+        ]);
+
+        $nozzle = Nozzle::create([
+            'station_id' => $station->id,
+            'machine_id' => $machine->id,
+            'tank_id' => $tank->id,
+            'product_id' => $product->id,
+            'label' => 'N1',
+            'is_active' => true,
+        ]);
+
+        $supplier = \App\Models\Supplier::create([
+            'station_id' => $station->id,
+            'name' => 'Shell supplier',
+            'company_name' => 'Shell',
+            'is_active' => true,
+        ]);
+
+        // 5. Setup Shift log
+        $shift = Shift::create([
+            'station_id' => $station->id,
+            'name' => 'Morning Shift',
+            'start_time' => '08:00:00',
+            'end_time' => '16:00:00',
+        ]);
+
+        $shiftLog = ShiftLog::create([
+            'station_id' => $station->id,
+            'shift_id' => $shift->id,
+            'date' => now()->toDateString(),
+            'status' => 'open',
+            'opened_at' => now(),
+            'opened_by' => $user->id,
+        ]);
+
+        // We post closing details
+        $response = $this->post(route('shift-logs.close', $shiftLog->id), [
+            'meter_readings' => [
+                [
+                    'nozzle_id' => $nozzle->id,
+                    'opening' => 1000.00,
+                    'closing' => 1100.00,
+                ]
+            ],
+            'dip_readings' => [
+                [
+                    'tank_id' => $tank->id,
+                    'opening_dip' => 300,
+                    'dip_mm' => 200,
+                    'water_mm' => 0,
+                ]
+            ],
+            'supplies' => [
+                [
+                    'tank_id' => $tank->id,
+                    'supplier_id' => $supplier->id,
+                    'liters_received' => 5000.00,
+                    'cost_per_liter' => 140.00,
+                ]
+            ],
+            'cash_amount' => 20000.00,
+            'notes' => 'Test notes',
+        ]);
+
+        $response->assertRedirect();
+        
+        $shiftLog->refresh();
+        $this->assertEquals('closed', $shiftLog->status);
+        $this->assertEquals(100.0, $shiftLog->total_liters_sold);
+        $this->assertEquals(20000.00, $shiftLog->total_revenue);
+        $this->assertEquals(20000.00, $shiftLog->total_cash);
+        $this->assertEquals(0.00, $shiftLog->short_excess);
+
+        // Verify supply delivery recorded
+        $delivery = \App\Models\TankDelivery::where('shift_log_id', $shiftLog->id)->first();
+        $this->assertNotNull($delivery);
+        $this->assertEquals(5000.00, $delivery->liters_received);
+        $this->assertEquals(700000.00, $delivery->total_amount);
+
+        // Check if supplier balance incremented
+        $this->assertEquals(700000.00, $supplier->fresh()->balance);
+
+        // Check stock reconciliation taking supply into account
+        $reconciliation = app(\App\Services\StockReconciliationService::class)->reconcile($shiftLog);
+        $this->assertCount(1, $reconciliation);
+        $this->assertEquals(30000.0, $reconciliation[0]['opening_liters']);
+        $this->assertEquals(5000.0, $reconciliation[0]['deliveries']);
+        $this->assertEquals(20000.0, $reconciliation[0]['closing_liters']);
+        $this->assertEquals(100.0, $reconciliation[0]['meter_sales']);
+        $this->assertEquals(15000.0, $reconciliation[0]['physical_sales']);
+        $this->assertEquals(14900.0, $reconciliation[0]['variance']);
+    }
 }

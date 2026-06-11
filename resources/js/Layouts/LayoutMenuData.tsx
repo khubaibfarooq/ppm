@@ -66,13 +66,13 @@ const Navdata = () => {
 
     function updateIconSidebar(e: any) {
         if (e && e.target && e.target.getAttribute("sub-items")) {
-            const ul : any = document.getElementById("two-column-menu");
-            const iconItems : any = ul.querySelectorAll(".nav-icon.active");
+            const ul: any = document.getElementById("two-column-menu");
+            const iconItems: any = ul.querySelectorAll(".nav-icon.active");
             let activeIconItems = [...iconItems];
             activeIconItems.forEach((item) => {
                 item.classList.remove("active");
                 var id = item.getAttribute("sub-items");
-                const getID : any = document.getElementById(id) as HTMLElement;
+                const getID: any = document.getElementById(id) as HTMLElement;
                 if (getID)
                     getID?.parentElement.classList.remove("show");
             });
@@ -161,6 +161,7 @@ const Navdata = () => {
             subItems: [
                 { id: "petro-dashboard", label: "Dashboard", link: "/dashboard", parentId: "petrostation" },
                 { id: "petro-shifts", label: "Shift Operations", link: "/shift-logs", parentId: "petrostation" },
+                { id: "petro-shift-templates", label: "Shift Templates", link: "/shifts", parentId: "petrostation" },
                 { id: "petro-tanks", label: "Tanks Management", link: "/tanks", parentId: "petrostation" },
                 { id: "petro-machines", label: "Dispensers & Nozzles", link: "/machines", parentId: "petrostation" },
                 { id: "petro-products", label: "Products & Pricing", link: "/products", parentId: "petrostation" },
@@ -233,71 +234,71 @@ const Navdata = () => {
                 },
             ]
         },
-        {
-            id: "dashboard",
-            label: "Dashboard",
-            icon: "bx bxs-dashboard",
-            link: "/#",
-            stateVariables: isDashboard,
-            click: function (e: any) {
-                e.preventDefault();
-                setIsDashboard(!isDashboard);
-                setIscurrentState('Dashboard');
-                updateIconSidebar(e);
-            },
-            subItems: [
-                {
-                    id: "analytics",
-                    label: "Analytics",
-                    link: "/dashboard-analytics",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "crm",
-                    label: "CRM",
-                    link: "/dashboard-crm",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "ecommerce",
-                    label: "Ecommerce",
-                    link: "/dashboard",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "crypto",
-                    label: "Crypto",
-                    link: "/dashboard-crypto",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "projects",
-                    label: "Projects",
-                    link: "/dashboard-projects",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "nft",
-                    label: "NFT",
-                    link: "/dashboard-nft",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "job",
-                    label: "Job",
-                    link: "/dashboard-job",
-                    parentId: "dashboard",
-                },
-                {
-                    id: "blog",
-                    label: "Blog",
-                    link: "/dashboard-blog",
-                    parentId: "dashboard",
-                    badgeColor: "success",
-                    badgeName: "New",
-                },
-            ],
-        },
+        // {
+        //     id: "dashboard",
+        //     label: "Dashboard",
+        //     icon: "bx bxs-dashboard",
+        //     link: "/#",
+        //     stateVariables: isDashboard,
+        //     click: function (e: any) {
+        //         e.preventDefault();
+        //         setIsDashboard(!isDashboard);
+        //         setIscurrentState('Dashboard');
+        //         updateIconSidebar(e);
+        //     },
+        //     subItems: [
+        //         {
+        //             id: "analytics",
+        //             label: "Analytics",
+        //             link: "/dashboard-analytics",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "crm",
+        //             label: "CRM",
+        //             link: "/dashboard-crm",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "ecommerce",
+        //             label: "Ecommerce",
+        //             link: "/dashboard",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "crypto",
+        //             label: "Crypto",
+        //             link: "/dashboard-crypto",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "projects",
+        //             label: "Projects",
+        //             link: "/dashboard-projects",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "nft",
+        //             label: "NFT",
+        //             link: "/dashboard-nft",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "job",
+        //             label: "Job",
+        //             link: "/dashboard-job",
+        //             parentId: "dashboard",
+        //         },
+        //         {
+        //             id: "blog",
+        //             label: "Blog",
+        //             link: "/dashboard-blog",
+        //             parentId: "dashboard",
+        //             badgeColor: "success",
+        //             badgeName: "New",
+        //         },
+        //     ],
+        // },
     ];
     return <React.Fragment>{menuItems}</React.Fragment>;
 };

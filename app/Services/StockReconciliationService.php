@@ -38,7 +38,13 @@ class StockReconciliationService
 
             // Deliveries during the shift for this tank
             $deliveries = TankDelivery::where('tank_id', $tank->id)
-                ->whereDate('delivery_date', $shiftLog->date)
+                ->where(function ($query) use ($shiftLog) {
+                    $query->where('shift_log_id', $shiftLog->id)
+                          ->orWhere(function ($q) use ($shiftLog) {
+                              $q->whereNull('shift_log_id')
+                                ->whereDate('delivery_date', $shiftLog->date);
+                          });
+                })
                 ->sum('liters_received');
 
             // Sales according to meters for this tank's nozzles

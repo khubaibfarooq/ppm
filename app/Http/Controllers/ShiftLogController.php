@@ -22,7 +22,7 @@ class ShiftLogController extends Controller
 {
     public function index(): Response
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
 
         $shiftLogs = ShiftLog::with(['shift', 'openedBy', 'closedBy'])
             ->where('station_id', $stationId)
@@ -62,7 +62,7 @@ class ShiftLogController extends Controller
 
     public function create(): Response
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
 
         $shifts = Shift::where('station_id', $stationId)->where('is_active', true)->get();
         
@@ -113,13 +113,13 @@ class ShiftLogController extends Controller
 
         $shiftLog = app(ShiftOpeningService::class)->open($validated, auth()->id());
 
-        return redirect()->route('shifts.show', $shiftLog->id)
+        return redirect()->route('shift-logs.show', $shiftLog->id)
             ->with('success', 'Shift opened successfully.');
     }
 
     public function closeForm(ShiftLog $shiftLog): Response
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
 
         $nozzles = Nozzle::with(['product', 'machine'])
             ->where('station_id', $stationId)
@@ -139,12 +139,26 @@ class ShiftLogController extends Controller
         $tanks = Tank::with('product')
             ->where('station_id', $stationId)
             ->where('is_active', true)
+            ->get()
+            ->map(fn($t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'product' => ['name' => $t->product->name],
+                'opening_dip' => (int) (TankDipReading::where('tank_id', $t->id)
+                    ->where('shift_log_id', $shiftLog->id)
+                    ->where('reading_type', 'opening')
+                    ->value('dip_mm') ?? 0),
+            ]);
+
+        $suppliers = \App\Models\Supplier::where('station_id', $stationId)
+            ->where('is_active', true)
             ->get();
 
         return Inertia::render('Shifts/Close', [
             'shiftLog' => $shiftLog,
             'nozzles' => $nozzles,
             'tanks' => $tanks,
+            'suppliers' => $suppliers,
         ]);
     }
 
@@ -153,57 +167,178 @@ class ShiftLogController extends Controller
         $request->validate([
             'meter_readings' => 'required|array',
             'meter_readings.*.nozzle_id' => 'required|exists:nozzles,id',
+            'meter_readings.*.opening' => 'required|numeric|min:0',
             'meter_readings.*.closing' => 'required|numeric|min:0',
             'dip_readings' => 'required|array',
             'dip_readings.*.tank_id' => 'required|exists:tanks,id',
+            'dip_readings.*.opening_dip' => 'required|integer|min:0',
             'dip_readings.*.dip_mm' => 'required|integer|min:0',
             'dip_readings.*.water_mm' => 'nullable|integer|min:0',
+            'supplies' => 'nullable|array',
+            'supplies.*.tank_id' => 'required|exists:tanks,id',
+            'supplies.*.supplier_id' => 'required|exists:suppliers,id',
+            'supplies.*.liters_received' => 'required|numeric|min:0',
+            'supplies.*.cost_per_liter' => 'required|numeric|min:0',
             'cash_amount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
-        // 1. Save closing meter readings
-        foreach ($request->input('meter_readings') as $mr) {
-            MeterReading::create([
-                'nozzle_id' => $mr['nozzle_id'],
-                'shift_log_id' => $shiftLog->id,
-                'reading_type' => 'closing',
-                'reading_value' => $mr['closing'],
-                'recorded_at' => now(),
-            ]);
-        }
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $shiftLog) {
+            $userId = auth()->id();
+            $stationId = auth()->user()->station_id;
 
-        // 2. Save closing dip readings
-        foreach ($request->input('dip_readings') as $dr) {
-            $tank = Tank::findOrFail($dr['tank_id']);
-            $liters = app(DipChartService::class)->dipToLiters($tank, $dr['dip_mm']);
+            // 1. Save/update nozzle readings (opening and closing)
+            foreach ($request->input('meter_readings') as $mr) {
+                // Save opening reading
+                MeterReading::updateOrCreate(
+                    [
+                        'nozzle_id' => $mr['nozzle_id'],
+                        'shift_log_id' => $shiftLog->id,
+                        'reading_type' => 'opening',
+                    ],
+                    [
+                        'reading_value' => $mr['opening'],
+                        'recorded_at' => now(),
+                    ]
+                );
 
-            TankDipReading::create([
-                'tank_id' => $dr['tank_id'],
-                'shift_log_id' => $shiftLog->id,
-                'reading_type' => 'closing',
-                'dip_mm' => $dr['dip_mm'],
-                'liters_from_chart' => $liters,
-                'water_dip_mm' => $dr['water_mm'] ?? 0,
-                'recorded_at' => now(),
-            ]);
-        }
+                // Save closing reading
+                MeterReading::updateOrCreate(
+                    [
+                        'nozzle_id' => $mr['nozzle_id'],
+                        'shift_log_id' => $shiftLog->id,
+                        'reading_type' => 'closing',
+                    ],
+                    [
+                        'reading_value' => $mr['closing'],
+                        'recorded_at' => now(),
+                    ]
+                );
+            }
 
-        // 3. Save Cash collection
-        if ($request->input('cash_amount') > 0) {
-            CashCollection::create([
-                'shift_log_id' => $shiftLog->id,
-                'user_id' => auth()->id(),
-                'amount' => $request->input('cash_amount'),
-                'notes' => $request->input('notes') ?? 'Shift cash collection',
-            ]);
-        }
+            // 2. Save/update dip readings (opening and closing)
+            foreach ($request->input('dip_readings') as $dr) {
+                $tank = Tank::findOrFail($dr['tank_id']);
+                
+                // Opening
+                $openingLiters = app(DipChartService::class)->dipToLiters($tank, $dr['opening_dip']);
+                TankDipReading::updateOrCreate(
+                    [
+                        'tank_id' => $dr['tank_id'],
+                        'shift_log_id' => $shiftLog->id,
+                        'reading_type' => 'opening',
+                    ],
+                    [
+                        'dip_mm' => $dr['opening_dip'],
+                        'liters_from_chart' => $openingLiters,
+                        'water_dip_mm' => 0,
+                        'recorded_at' => now(),
+                    ]
+                );
 
-        // 4. Close Shift & Post Financial Journals
-        app(ShiftClosingService::class)->closeShift($shiftLog, auth()->id());
+                // Closing
+                $closingLiters = app(DipChartService::class)->dipToLiters($tank, $dr['dip_mm']);
+                TankDipReading::updateOrCreate(
+                    [
+                        'tank_id' => $dr['tank_id'],
+                        'shift_log_id' => $shiftLog->id,
+                        'reading_type' => 'closing',
+                    ],
+                    [
+                        'dip_mm' => $dr['dip_mm'],
+                        'liters_from_chart' => $closingLiters,
+                        'water_dip_mm' => $dr['water_mm'] ?? 0,
+                        'recorded_at' => now(),
+                    ]
+                );
+            }
 
-        return redirect()->route('shifts.show', $shiftLog->id)
-            ->with('success', 'Shift closed and journals posted successfully.');
+            // 3. Save supplies (purchasing/deliveries)
+            if ($request->has('supplies')) {
+                foreach ($request->input('supplies') as $supply) {
+                    $tank = Tank::with('product')->findOrFail($supply['tank_id']);
+                    $supplier = \App\Models\Supplier::findOrFail($supply['supplier_id']);
+                    $totalAmount = round($supply['liters_received'] * $supply['cost_per_liter'], 2);
+
+                    // Post Purchase Journal Entry
+                    // DR Inventory (Fuel Asset) / CR Accounts Payable
+                    $inventoryAccountId = $tank->product->inventory_account_id;
+                    $apAccount = \App\Models\ChartOfAccount::where('station_id', $stationId)
+                        ->whereIn('code', ['100501', '2100'])
+                        ->first();
+
+                    if (!$inventoryAccountId || !$apAccount) {
+                        throw new \Exception('Inventory account or Accounts Payable control account is not configured.');
+                    }
+
+                    $journalEntries = [
+                        [
+                            'account_id' => $inventoryAccountId,
+                            'debit' => $totalAmount,
+                            'credit' => 0,
+                            'description' => "Received {$supply['liters_received']}L of {$tank->product->name} (Shift #{$shiftLog->id})",
+                        ],
+                        [
+                            'account_id' => $apAccount->id,
+                            'debit' => 0,
+                            'credit' => $totalAmount,
+                            'description' => "Payable to {$supplier->name} for {$tank->product->name} delivery (Shift #{$shiftLog->id})",
+                        ]
+                    ];
+
+                    $journal = app(\App\Services\AccountingService::class)->post([
+                        'station_id' => $stationId,
+                        'type' => 'purchase',
+                        'date' => $shiftLog->date->format('Y-m-d'),
+                        'narration' => "Fuel delivery: {$tank->name} - {$supply['liters_received']}L from {$supplier->name} (Shift #{$shiftLog->id})",
+                        'reference_type' => \App\Models\TankDelivery::class,
+                        'reference_id' => null, // will fill below
+                        'entries' => $journalEntries,
+                    ], $userId);
+
+                    $delivery = \App\Models\TankDelivery::create([
+                        'station_id' => $stationId,
+                        'tank_id' => $supply['tank_id'],
+                        'supplier_id' => $supply['supplier_id'],
+                        'delivery_date' => $shiftLog->date,
+                        'liters_received' => $supply['liters_received'],
+                        'cost_per_liter' => $supply['cost_per_liter'],
+                        'total_amount' => $totalAmount,
+                        'recorded_by' => $userId,
+                        'journal_id' => $journal->id,
+                        'shift_log_id' => $shiftLog->id,
+                    ]);
+
+                    $journal->update([
+                        'reference_id' => $delivery->id,
+                    ]);
+
+                    // Update physical tank stock levels
+                    $tank->increment('current_liters', $supply['liters_received']);
+
+                    // Update supplier credit balance
+                    $supplier->increment('balance', $totalAmount);
+                }
+            }
+
+            // 4. Save Cash collection
+            CashCollection::updateOrCreate(
+                [
+                    'shift_log_id' => $shiftLog->id,
+                ],
+                [
+                    'user_id' => $userId,
+                    'amount' => $request->input('cash_amount'),
+                    'notes' => $request->input('notes') ?? 'Shift cash collection',
+                ]
+            );
+
+            // 5. Close Shift & Post Financial Journals
+            app(ShiftClosingService::class)->closeShift($shiftLog, $userId);
+
+            return redirect()->route('shift-logs.show', $shiftLog->id)
+                ->with('success', 'Shift closed and journals posted successfully.');
+        });
     }
 
     public function verify(ShiftLog $shiftLog): RedirectResponse

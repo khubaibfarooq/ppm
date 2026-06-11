@@ -32,7 +32,7 @@ const Index = ({ shiftLogs }: Props) => {
           <Row className="mb-4">
             <Col className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0 text-muted">Daily operations logging</h5>
-              <Link href={route('shifts.create')}>
+              <Link href={route('shift-logs.create')}>
                 <Button variant="primary" className="btn-label waves-effect waves-light">
                   <i className="ri-add-line label-icon align-middle fs-16 me-2"></i> Open New Shift
                 </Button>
@@ -84,11 +84,18 @@ const Index = ({ shiftLogs }: Props) => {
                               <td>{log.opened_by.name}</td>
                               <td>{log.closed_by ? log.closed_by.name : '-'}</td>
                               <td className="text-center">
-                                <Link href={route('shifts.show', log.id)}>
-                                  <Button variant="soft-primary" size="sm">
+                                <Link href={route('shift-logs.show', log.id)}>
+                                  <Button variant="soft-primary" size="sm" className="me-2">
                                     <i className="ri-eye-line align-bottom me-1"></i> View Details
                                   </Button>
                                 </Link>
+                                {log.status === 'open' && (
+                                  <Link href={route('shift-logs.close.form', log.id)}>
+                                    <Button variant="soft-warning" size="sm">
+                                      <i className="ri-close-circle-line align-bottom me-1"></i> Close Shift
+                                    </Button>
+                                  </Link>
+                                )}
                               </td>
                             </tr>
                           ))

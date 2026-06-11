@@ -78,6 +78,11 @@ class ShiftLog extends Model
         return $this->hasMany(CashCollection::class);
     }
 
+    public function tankDeliveries(): HasMany
+    {
+        return $this->hasMany(TankDelivery::class);
+    }
+
     public function journal(): BelongsTo
     {
         return $this->belongsTo(Journal::class);

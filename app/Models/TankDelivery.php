@@ -22,6 +22,7 @@ class TankDelivery extends Model
         'total_amount',
         'recorded_by',
         'journal_id',
+        'shift_log_id',
     ];
 
     protected $casts = [
@@ -49,5 +50,10 @@ class TankDelivery extends Model
     public function journal(): BelongsTo
     {
         return $this->belongsTo(Journal::class);
+    }
+
+    public function shiftLog(): BelongsTo
+    {
+        return $this->belongsTo(ShiftLog::class);
     }
 }

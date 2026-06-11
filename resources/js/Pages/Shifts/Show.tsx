@@ -13,7 +13,7 @@ const Show = ({ shiftLog, reconciliation }: Props) => {
   const { post, processing } = useForm();
 
   const handleVerify = () => {
-    post(route('shifts.verify', shiftLog.id));
+    post(route('shift-logs.verify', shiftLog.id));
   };
 
   return (
@@ -30,7 +30,7 @@ const Show = ({ shiftLog, reconciliation }: Props) => {
                 <i className="ri-error-warning-line fs-18 align-middle me-2"></i>
                 This shift is currently <strong>OPEN</strong>. Operations are active.
               </div>
-              <Link href={route('shifts.close.form', shiftLog.id)}>
+              <Link href={route('shift-logs.close.form', shiftLog.id)}>
                 <Button variant="warning" size="sm">
                   <i className="ri-close-circle-line align-bottom me-1"></i> Reconcile & Close Shift
                 </Button>

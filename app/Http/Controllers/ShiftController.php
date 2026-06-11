@@ -12,9 +12,9 @@ class ShiftController extends Controller
 {
     public function index(): Response
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
 
-        $shifts = Shift::where('station_id', $stationId)->get();
+        $shifts = $stationId ? Shift::where('station_id', $stationId)->get() : collect();
 
         return Inertia::render('Shifts/Templates', [
             'shifts' => $shifts,
@@ -23,7 +23,11 @@ class ShiftController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
+
+        if (!$stationId) {
+            return redirect()->back()->withErrors(['name' => 'A station must exist to create a shift template. Please configure a station first.']);
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:50',

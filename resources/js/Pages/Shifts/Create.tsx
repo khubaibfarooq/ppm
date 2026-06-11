@@ -49,7 +49,7 @@ const Create = ({ shifts, nozzles, tanks }: Props) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    post(route('shifts.open'));
+    post(route('shift-logs.open'));
   };
 
   return (
@@ -107,7 +107,7 @@ const Create = ({ shifts, nozzles, tanks }: Props) => {
                     <h5 className="card-title mb-0 fw-bold text-primary">Nozzle Opening Readings</h5>
                   </Card.Header>
                   <Card.Body>
-                    <Table responsive bordered hover align="middle" className="mb-0">
+                    <Table responsive bordered hover className="align-middle mb-0">
                       <thead className="table-light">
                         <tr>
                           <th>Nozzle Details</th>
@@ -147,7 +147,7 @@ const Create = ({ shifts, nozzles, tanks }: Props) => {
                     <h5 className="card-title mb-0 fw-bold text-success">Tank Physical Opening Dips (mm)</h5>
                   </Card.Header>
                   <Card.Body>
-                    <Table responsive bordered hover align="middle" className="mb-0">
+                    <Table responsive bordered hover className="align-middle mb-0">
                       <thead className="table-light">
                         <tr>
                           <th>Tank Details</th>
@@ -193,7 +193,7 @@ const Create = ({ shifts, nozzles, tanks }: Props) => {
               </Col>
 
               <Col lg={12} className="d-flex justify-content-between mb-5">
-                <Link href={route('shifts.index')}>
+                <Link href={route('shift-logs.index')}>
                   <Button variant="light" size="lg">Cancel</Button>
                 </Link>
                 <Button type="submit" variant="primary" size="lg" disabled={processing}>

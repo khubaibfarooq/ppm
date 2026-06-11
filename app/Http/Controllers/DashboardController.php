@@ -13,7 +13,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
-        $stationId = auth()->user()->station_id;
+        $stationId = auth()->user()->station_id ?? \App\Models\Station::first()?->id;
 
         $today = today()->toDateString();
 

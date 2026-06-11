@@ -62,7 +62,7 @@ Route::middleware('auth')->group(function () {
 
     // Shifts
     Route::resource('shifts', ShiftController::class); // shift templates
-    Route::prefix('shift-logs')->name('shifts.')->group(function () {
+    Route::prefix('shift-logs')->name('shift-logs.')->group(function () {
         Route::get('/',             [ShiftLogController::class, 'index'])->name('index');
         Route::get('/create',       [ShiftLogController::class, 'create'])->name('create');
         Route::get('/{shiftLog}',   [ShiftLogController::class, 'show'])->name('show');
@@ -134,10 +134,10 @@ Route::middleware('auth')->group(function () {
 
         // dashboard routes
         // Route::inertia('/', 'Dashboard')->name('index');
-        Route::get("/dashboard", "index");
+        // Route::get("/dashboard", "index");
         Route::get("/dashboard-analytics", "dashboard_analytics");
         Route::get("/dashboard-crm", "dashboard_crm");
-        Route::get("/dashboard", "dashboard");
+        Route::get("/dashboard-ecommerce", "dashboard");
         Route::get("/dashboard-crypto", "dashboard_crypto");
         Route::get("/dashboard-projects", "dashboard_projects");
         Route::get("/dashboard-nft", "dashboard_nft");
