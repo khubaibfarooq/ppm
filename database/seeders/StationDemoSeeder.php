@@ -134,7 +134,7 @@ class StationDemoSeeder extends Seeder
 
         foreach ($usersData as $ud) {
             $user = User::create([
-                'station_id' => $station->id,
+                'station_id' => $ud['role'] === 'super_admin' ? null : $station->id,
                 'name' => $ud['name'],
                 'email' => $ud['email'],
                 'password' => Hash::make('password'),

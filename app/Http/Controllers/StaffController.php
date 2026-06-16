@@ -14,25 +14,33 @@ class StaffController extends Controller
 {
     public function index(): Response
     {
-        $stationId = auth()->user()->station_id;
+        $user = auth()->user();
+        $isSuperAdmin = $user->hasRole('super_admin');
 
-        $staff = User::with('roles')
-            ->where('station_id', $stationId)
-            ->get();
-
+        $staffQuery = User::with(['roles', 'station']);
+        if (!$isSuperAdmin) {
+            $staffQuery->where('station_id', $user->station_id);
+        }
+        
+        $staff = $staffQuery->orderBy('id', 'desc')->get();
         $roles = Role::all()->pluck('name');
+        $stations = $isSuperAdmin 
+            ? \App\Models\Station::where('is_active', true)->orderBy('name')->get(['id', 'name'])
+            : [];
 
         return Inertia::render('Staff/Index', [
             'staff' => $staff,
             'roles' => $roles,
+            'stations' => $stations,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $stationId = auth()->user()->station_id;
+        $user = auth()->user();
+        $isSuperAdmin = $user->hasRole('super_admin');
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
@@ -44,20 +52,31 @@ class StaffController extends Controller
             'basic_salary' => 'required|numeric|min:0',
             'join_date' => 'required|date',
             'role' => 'required|string|exists:roles,name',
-        ]);
+        ];
 
-        $validated['station_id'] = $stationId;
+        if ($isSuperAdmin) {
+            $rules['station_id'] = 'required|exists:stations,id';
+        }
+
+        $validated = $request->validate($rules);
+
+        if (!$isSuperAdmin) {
+            $validated['station_id'] = $user->station_id;
+        }
         $validated['password'] = Hash::make($validated['password']);
 
-        $user = User::create($validated);
-        $user->assignRole($validated['role']);
+        $newStaff = User::create($validated);
+        $newStaff->assignRole($validated['role']);
 
         return redirect()->back()->with('success', 'Staff member added successfully.');
     }
 
     public function update(Request $request, User $staff): RedirectResponse
     {
-        $validated = $request->validate([
+        $user = auth()->user();
+        $isSuperAdmin = $user->hasRole('super_admin');
+
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $staff->id,
             'employee_code' => 'required|string|max:20|unique:users,employee_code,' . $staff->id,
@@ -69,7 +88,13 @@ class StaffController extends Controller
             'join_date' => 'required|date',
             'status' => 'required|in:active,inactive,terminated',
             'role' => 'required|string|exists:roles,name',
-        ]);
+        ];
+
+        if ($isSuperAdmin) {
+            $rules['station_id'] = 'required|exists:stations,id';
+        }
+
+        $validated = $request->validate($rules);
 
         if ($request->filled('password')) {
             $request->validate(['password' => 'string|min:8']);

@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 
 const Navdata = () => {
+    const { props } = usePage();
+    const user: any = props.auth?.user;
+    const permissions: string[] = (props.permissions as string[]) || [];
+    const isSuperAdmin = user?.roles?.some((role: any) => role.name === 'super_admin') || permissions.includes('manage stations');
+
+    const hasPermission = (permission: string) => {
+        return isSuperAdmin || permissions.includes(permission);
+    };
+
     //state data
     const [isDashboard, setIsDashboard] = useState<boolean>(false);
     const [isApps, setIsApps] = useState<boolean>(false);
@@ -142,6 +152,36 @@ const Navdata = () => {
     ]);
 
     const menuItems: any = [
+        ...(isSuperAdmin ? [
+            {
+                label: "Super Admin Settings",
+                isHeader: true,
+            },
+            {
+                id: "stations-root",
+                label: "Station Management",
+                icon: "bx bx-buildings",
+                link: "/stations",
+            },
+            {
+                id: "shifts-root",
+                label: "Shift Templates",
+                icon: "bx bx-calendar-event",
+                link: "/shifts",
+            },
+            {
+                id: "staff-root",
+                label: "Staff Directory",
+                icon: "bx bx-user-pin",
+                link: "/staff",
+            },
+            {
+                id: "roles-root",
+                label: "Roles & Permissions",
+                icon: "bx bx-shield-quarter",
+                link: "/roles",
+            },
+        ] : []),
         {
             label: "Menu",
             isHeader: true,
@@ -160,12 +200,18 @@ const Navdata = () => {
             },
             subItems: [
                 { id: "petro-dashboard", label: "Dashboard", link: "/dashboard", parentId: "petrostation" },
-                { id: "petro-shifts", label: "Shift Operations", link: "/shift-logs", parentId: "petrostation" },
-                { id: "petro-shift-templates", label: "Shift Templates", link: "/shifts", parentId: "petrostation" },
-                { id: "petro-tanks", label: "Tanks Management", link: "/tanks", parentId: "petrostation" },
-                { id: "petro-machines", label: "Dispensers & Nozzles", link: "/machines", parentId: "petrostation" },
-                { id: "petro-products", label: "Products & Pricing", link: "/products", parentId: "petrostation" },
-                {
+                ...(isSuperAdmin ? [
+                    { id: "petro-stations", label: "Stations Management", link: "/stations", parentId: "petrostation" },
+                    { id: "petro-roles", label: "Roles & Permissions", link: "/roles", parentId: "petrostation" }
+                ] : []),
+                ...(hasPermission('view shifts') ? [{ id: "petro-shifts", label: "Shift Operations", link: "/shift-logs", parentId: "petrostation" }] : []),
+                ...(hasPermission('manage shifts') ? [{ id: "petro-shift-templates", label: "Shift Templates", link: "/shifts", parentId: "petrostation" }] : []),
+                ...(hasPermission('view tanks') ? [{ id: "petro-tanks", label: "Tanks Management", link: "/tanks", parentId: "petrostation" }] : []),
+                ...(hasPermission('view machines') ? [{ id: "petro-machines", label: "Dispensers & Nozzles", link: "/machines", parentId: "petrostation" }] : []),
+                ...(hasPermission('view products') ? [{ id: "petro-products", label: "Products & Pricing", link: "/products", parentId: "petrostation" }] : []),
+                
+                // Accounting Collapsible Menu
+                ...((hasPermission('view accounts') || hasPermission('view journals')) ? [{
                     id: "petro-accounting",
                     label: "Accounting",
                     link: "/#",
@@ -177,12 +223,16 @@ const Navdata = () => {
                     },
                     stateVariables: isPetroAccounting,
                     childItems: [
-                        { id: 1, label: "Chart of Accounts", link: "/accounts" },
-                        { id: 2, label: "General Ledger", link: "/ledger" },
-                        { id: 3, label: "Journal Vouchers", link: "/journals" },
+                        ...(hasPermission('view accounts') ? [
+                            { id: 1, label: "Chart of Accounts", link: "/accounts" },
+                            { id: 2, label: "General Ledger", link: "/ledger" }
+                        ] : []),
+                        ...(hasPermission('view journals') ? [{ id: 3, label: "Journal Vouchers", link: "/journals" }] : []),
                     ]
-                },
-                {
+                }] : []),
+
+                // HR & Payroll Collapsible Menu
+                ...((hasPermission('view staff') || hasPermission('process salary')) ? [{
                     id: "petro-hr",
                     label: "HR & Payroll",
                     link: "/#",
@@ -194,12 +244,16 @@ const Navdata = () => {
                     },
                     stateVariables: isPetroHR,
                     childItems: [
-                        { id: 1, label: "Staff Directory", link: "/staff" },
-                        { id: 2, label: "Attendance Log", link: "/attendance" },
-                        { id: 3, label: "Salary Payments", link: "/salaries" },
+                        ...(hasPermission('view staff') ? [
+                            { id: 1, label: "Staff Directory", link: "/staff" },
+                            { id: 2, label: "Attendance Log", link: "/attendance" }
+                        ] : []),
+                        ...(hasPermission('process salary') ? [{ id: 3, label: "Salary Payments", link: "/salaries" }] : []),
                     ]
-                },
-                {
+                }] : []),
+
+                // Commercial (AR/AP) Collapsible Menu
+                ...((hasPermission('manage customers') || hasPermission('manage suppliers')) ? [{
                     id: "petro-commercial",
                     label: "Commercial (AR/AP)",
                     link: "/#",
@@ -211,11 +265,13 @@ const Navdata = () => {
                     },
                     stateVariables: isPetroCommercial,
                     childItems: [
-                        { id: 1, label: "Customers (AR)", link: "/customers" },
-                        { id: 2, label: "Suppliers (AP)", link: "/suppliers" },
+                        ...(hasPermission('manage customers') ? [{ id: 1, label: "Customers (AR)", link: "/customers" }] : []),
+                        ...(hasPermission('manage suppliers') ? [{ id: 2, label: "Suppliers (AP)", link: "/suppliers" }] : []),
                     ]
-                },
-                {
+                }] : []),
+
+                // Reports Collapsible Menu
+                ...(hasPermission('view reports') ? [{
                     id: "petro-reports",
                     label: "Financial Reports",
                     link: "/#",
@@ -231,7 +287,7 @@ const Navdata = () => {
                         { id: 2, label: "Profit & Loss", link: "/reports/profit-loss" },
                         { id: 3, label: "Balance Sheet", link: "/reports/balance-sheet" },
                     ]
-                },
+                }] : []),
             ]
         },
         // {

@@ -63,17 +63,19 @@ class DashboardController extends Controller
             'amount' => (double)$item->amount,
         ])->toArray();
 
-        // Fallback demo data if today has no sales yet (so the UI looks beautiful)
+        // Populate active products of the station with 0 sales if no sales are recorded yet today
         if (empty($salesData)) {
-            $salesData = [
-                ['name' => 'Super Petrol (PMG)', 'liters' => 450, 'amount' => 121500],
-                ['name' => 'High Speed Diesel (HSD)', 'liters' => 320, 'amount' => 89600],
-            ];
+            $products = \App\Models\Product::where('station_id', $stationId)->where('is_active', true)->get();
+            $salesData = $products->map(fn($p) => [
+                'name' => $p->name,
+                'liters' => 0.0,
+                'amount' => 0.0,
+            ])->toArray();
         }
 
         return Inertia::render('Dashboard/Index', [
-            'todayRevenue' => $todayRevenue > 0 ? $todayRevenue : 211100, // demo default if 0
-            'todayLiters' => $todayLiters > 0 ? $todayLiters : 770,      // demo default if 0
+            'todayRevenue' => $todayRevenue,
+            'todayLiters' => $todayLiters,
             'openShiftsCount' => $openShiftsCount,
             'alertsCount' => $alertsCount,
             'salesData' => $salesData,

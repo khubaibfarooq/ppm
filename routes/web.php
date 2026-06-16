@@ -25,6 +25,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SalaryController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\RoleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -119,6 +120,10 @@ Route::middleware('auth')->group(function () {
     // Exports
     Route::get('export/shift/{shiftLog}', [ExportController::class, 'shift'])->name('export.shift');
     Route::get('export/report/{type}',    [ExportController::class, 'report'])->name('export.report');
+
+    // Roles & Permissions
+    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
 
     Route::get('/profile-edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile-update', [ProfileController::class, 'update'])->name('profile.update');
