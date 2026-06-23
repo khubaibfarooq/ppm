@@ -50,7 +50,7 @@ const Index = ({ accounts }: Props) => {
     const filtered = accounts.filter(acc => acc.type === type);
     return (
       <div className="table-responsive mt-3">
-        <Table bordered hover align="middle" className="mb-0 table-nowrap">
+        <Table bordered hover className="align-middle mb-0 table-nowrap">
           <thead className="table-light">
             <tr>
               <th style={{ width: '120px' }}>Code</th>

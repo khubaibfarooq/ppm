@@ -45,7 +45,7 @@ const TrialBalance = ({ accounts, totalDebit, totalCredit, asOf }: Props) => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0 table-nowrap">
+                    <Table bordered hover className="align-middle mb-0 table-nowrap">
                       <thead className="table-light">
                         <tr>
                           <th style={{ width: '120px' }}>Code</th>

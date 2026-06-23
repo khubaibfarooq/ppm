@@ -7,17 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Customer extends Model
+class Vehicle extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'station_id',
-        'name',
-        'company_name',
-        'email',
-        'phone',
-        'address',
+        'customer_id',
+        'vehicle_number',
         'balance',
         'is_active',
     ];
@@ -27,18 +23,13 @@ class Customer extends Model
         'is_active' => 'boolean',
     ];
 
-    public function station(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(Station::class);
+        return $this->belongsTo(Customer::class);
     }
 
     public function creditSales(): HasMany
     {
         return $this->hasMany(CreditSale::class);
-    }
-
-    public function vehicles(): HasMany
-    {
-        return $this->hasMany(Vehicle::class);
     }
 }

@@ -146,7 +146,7 @@ const DipChart = ({ tank, dipChart }: Props) => {
                 <Card.Body>
                   <Form onSubmit={handleSubmit}>
                     <div className="table-responsive" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                      <Table bordered hover align="middle" className="mb-0">
+                      <Table bordered hover className="align-middle mb-0">
                         <thead className="table-light sticky-top">
                           <tr>
                             <th className="text-center" style={{ width: '80px' }}>#</th>

@@ -91,11 +91,12 @@ class ShiftClosingService
                 }
             }
 
-            // 2. Cash collection
+            // 2. Cash collection & Credit Sales
             $totalCash  = CashCollection::where('shift_log_id', $shiftLog->id)->sum('amount');
-            $shortExcess = round($totalCash - $totalRevenue, 2);
+            $totalCreditSales = \App\Models\CreditSale::where('shift_log_id', $shiftLog->id)->sum('total_amount');
+            $shortExcess = round(($totalCash + $totalCreditSales) - $totalRevenue, 2);
 
-            // 3. Post journals: DR Cash / CR Sales / DR COGS / CR Inventory / DR or CR Cash Short-Excess
+            // 3. Post journals: DR Cash / DR AR / CR Sales / DR COGS / CR Inventory / DR or CR Cash Short-Excess
             $cashAccountId = setting('cash_account_id', $shiftLog->station_id) ?? 2; // Default fallback to cash in hand
             array_unshift($journalEntries, [
                 'account_id'  => $cashAccountId,
@@ -103,6 +104,19 @@ class ShiftClosingService
                 'credit'      => 0,
                 'description' => "Cash collected - {$shiftLog->shift->name} {$shiftLog->date->format('Y-m-d')}",
             ]);
+
+            if ($totalCreditSales > 0) {
+                $arAccount = \App\Models\ChartOfAccount::where('station_id', $shiftLog->station_id)->whereIn('code', ['110501', '1300'])->first();
+                if (!$arAccount) {
+                    throw new \Exception('Accounts Receivable control account is not configured.');
+                }
+                $journalEntries[] = [
+                    'account_id'  => $arAccount->id,
+                    'debit'       => $totalCreditSales,
+                    'credit'      => 0,
+                    'description' => "Credit Sales - {$shiftLog->shift->name} {$shiftLog->date->format('Y-m-d')}",
+                ];
+            }
 
             // Add Cash Short/Excess to balance the journal
             if (round($shortExcess, 2) != 0.00) {

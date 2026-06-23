@@ -21,7 +21,7 @@ class CustomerController extends Controller
     {
         $stationId = auth()->user()->station_id;
 
-        $customers = Customer::where('station_id', $stationId)->get();
+        $customers = Customer::where('station_id', $stationId)->with('vehicles')->get();
 
         return Inertia::render('Customers/Index', [
             'customers' => $customers,
@@ -78,6 +78,7 @@ class CustomerController extends Controller
             'payment_date' => 'required|date',
             'payment_method' => 'required|in:cash,bank',
             'notes' => 'nullable|string|max:255',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
         ]);
 
         return DB::transaction(function () use ($validated, $customer, $stationId) {
@@ -92,18 +93,24 @@ class CustomerController extends Controller
                 return redirect()->back()->with('error', 'Accounts Receivable control account is not configured.');
             }
 
+            $vehicleInfo = '';
+            if (!empty($validated['vehicle_id'])) {
+                $vehicle = \App\Models\Vehicle::findOrFail($validated['vehicle_id']);
+                $vehicleInfo = " (Vehicle: {$vehicle->vehicle_number})";
+            }
+
             $journalEntries = [
                 [
                     'account_id' => $cashAccountId,
                     'debit' => $validated['amount'],
                     'credit' => 0,
-                    'description' => "Received payment from customer {$customer->name} - {$validated['payment_method']}",
+                    'description' => "Received payment from customer {$customer->name}{$vehicleInfo} - {$validated['payment_method']}",
                 ],
                 [
                     'account_id' => $arAccount->id,
                     'debit' => 0,
                     'credit' => $validated['amount'],
-                    'description' => "Credit to Accounts Receivable for customer {$customer->name}",
+                    'description' => "Credit to Accounts Receivable for customer {$customer->name}{$vehicleInfo}",
                 ]
             ];
 
@@ -111,16 +118,66 @@ class CustomerController extends Controller
                 'station_id' => $stationId,
                 'type' => 'cash',
                 'date' => $validated['payment_date'],
-                'narration' => "Customer payment received: {$customer->name} - PKR " . number_format($validated['amount']) . " via {$validated['payment_method']}." . ($validated['notes'] ? " ({$validated['notes']})" : ""),
+                'narration' => "Customer payment received: {$customer->name}{$vehicleInfo} - PKR " . number_format($validated['amount']) . " via {$validated['payment_method']}." . ($validated['notes'] ? " ({$validated['notes']})" : ""),
                 'reference_type' => Customer::class,
                 'reference_id' => $customer->id,
                 'entries' => $journalEntries,
             ], auth()->id());
+
+            // Process balance decrements
+            if (!empty($validated['vehicle_id'])) {
+                $vehicle = \App\Models\Vehicle::findOrFail($validated['vehicle_id']);
+                $vehicle->decrement('balance', $validated['amount']);
+            } else {
+                // Auto distribute general payment across vehicles with positive balances
+                $remainingAmount = $validated['amount'];
+                $vehicles = $customer->vehicles()->where('balance', '>', 0)->orderBy('id')->get();
+                foreach ($vehicles as $v) {
+                    if ($remainingAmount <= 0) {
+                        break;
+                    }
+                    $reduction = min($remainingAmount, $v->balance);
+                    $v->decrement('balance', $reduction);
+                    $remainingAmount -= $reduction;
+                }
+            }
 
             // Reduce customer AR balance
             $customer->decrement('balance', $validated['amount']);
 
             return redirect()->back()->with('success', 'Customer payment received and journal posted successfully.');
         });
+    }
+
+    public function addVehicle(Request $request, Customer $customer): RedirectResponse
+    {
+        $validated = $request->validate([
+            'vehicle_number' => 'required|string|max:50',
+        ]);
+
+        // Check if vehicle already exists for this customer
+        $exists = $customer->vehicles()->where('vehicle_number', $validated['vehicle_number'])->exists();
+        if ($exists) {
+            return redirect()->back()->with('error', 'Vehicle is already registered for this customer.');
+        }
+
+        $customer->vehicles()->create([
+            'vehicle_number' => $validated['vehicle_number'],
+            'balance' => 0,
+            'is_active' => true,
+        ]);
+
+        return redirect()->back()->with('success', 'Vehicle registered successfully.');
+    }
+
+    public function deleteVehicle(\App\Models\Vehicle $vehicle): RedirectResponse
+    {
+        // Don't allow deletion if vehicle has a balance
+        if ($vehicle->balance > 0) {
+            return redirect()->back()->with('error', 'Cannot delete vehicle with outstanding balance.');
+        }
+
+        $vehicle->delete();
+        return redirect()->back()->with('success', 'Vehicle removed successfully.');
     }
 }

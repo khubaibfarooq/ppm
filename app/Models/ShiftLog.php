@@ -63,6 +63,11 @@ class ShiftLog extends Model
         return $this->hasMany(ShiftSale::class);
     }
 
+    public function creditSales(): HasMany
+    {
+        return $this->hasMany(CreditSale::class);
+    }
+
     public function meterReadings(): HasMany
     {
         return $this->hasMany(MeterReading::class);

@@ -13,6 +13,7 @@ class CreditSale extends Model
     protected $fillable = [
         'shift_log_id',
         'customer_id',
+        'vehicle_id',
         'product_id',
         'liters_sold',
         'sale_price',
@@ -36,6 +37,11 @@ class CreditSale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
     }
 
     public function product(): BelongsTo

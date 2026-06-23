@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('shift_log_id')->constrained()->cascadeOnDelete();
             $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('vehicle_id')->nullable()->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->decimal('liters_sold', 14, 4);
             $table->decimal('sale_price', 12, 2);

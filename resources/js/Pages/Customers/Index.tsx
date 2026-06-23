@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { Card, Col, Container, Row, Table, Button, Modal, Form } from 'react-bootstrap';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import Layout from '@/Layouts';
 import BreadCrumb from '@/Components/Common/BreadCrumb';
+
+interface Vehicle {
+  id: number;
+  customer_id: number;
+  vehicle_number: string;
+  balance: number;
+  is_active: boolean;
+}
 
 interface Customer {
   id: number;
@@ -13,6 +21,7 @@ interface Customer {
   address: string;
   balance: number;
   is_active: boolean;
+  vehicles?: Vehicle[];
 }
 
 interface Props {
@@ -22,7 +31,11 @@ interface Props {
 const Index = ({ customers }: Props) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showVehiclesModal, setShowVehiclesModal] = useState(false);
   const [selectedCust, setSelectedCust] = useState<Customer | null>(null);
+
+  const [newVehicleNumber, setNewVehicleNumber] = useState('');
+  const [vehicleProcessing, setVehicleProcessing] = useState(false);
 
   const addForm = useForm({
     name: '',
@@ -37,6 +50,7 @@ const Index = ({ customers }: Props) => {
     payment_date: new Date().toISOString().split('T')[0],
     payment_method: 'cash',
     notes: '',
+    vehicle_id: '',
   });
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -62,7 +76,56 @@ const Index = ({ customers }: Props) => {
 
   const openPaymentModal = (cust: Customer) => {
     setSelectedCust(cust);
+    payForm.setData({
+      amount: '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: 'cash',
+      notes: '',
+      vehicle_id: '',
+    });
     setShowPayModal(true);
+  };
+
+  const openVehiclesModal = (cust: Customer) => {
+    setSelectedCust(cust);
+    setShowVehiclesModal(true);
+    setNewVehicleNumber('');
+  };
+
+  const handleAddVehicle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCust || !newVehicleNumber.trim()) return;
+    setVehicleProcessing(true);
+    router.post(route('customers.vehicles.store', selectedCust.id), {
+      vehicle_number: newVehicleNumber
+    }, {
+      onSuccess: (page) => {
+        setNewVehicleNumber('');
+        setVehicleProcessing(false);
+        const updatedCust = (page.props.customers as Customer[]).find(c => c.id === selectedCust.id);
+        if (updatedCust) setSelectedCust(updatedCust);
+      },
+      onError: () => {
+        setVehicleProcessing(false);
+      }
+    });
+  };
+
+  const handleDeleteVehicle = (vehicleId: number) => {
+    if (!confirm('Are you sure you want to remove this vehicle?')) return;
+    setVehicleProcessing(true);
+    router.delete(route('vehicles.destroy', vehicleId), {
+      onSuccess: (page) => {
+        setVehicleProcessing(false);
+        if (selectedCust) {
+          const updatedCust = (page.props.customers as Customer[]).find(c => c.id === selectedCust.id);
+          if (updatedCust) setSelectedCust(updatedCust);
+        }
+      },
+      onError: () => {
+        setVehicleProcessing(false);
+      }
+    });
   };
 
   return (
@@ -86,7 +149,7 @@ const Index = ({ customers }: Props) => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0">
+                    <Table bordered hover className="align-middle mb-0">
                       <thead className="table-light">
                         <tr>
                           <th>Customer Name</th>
@@ -119,9 +182,14 @@ const Index = ({ customers }: Props) => {
                               </span>
                             </td>
                             <td className="text-center">
-                              <Button variant="soft-success" size="sm" onClick={() => openPaymentModal(cust)}>
-                                <i className="ri-hand-coin-line align-bottom me-1"></i> Receive Payment
-                              </Button>
+                              <div className="d-flex gap-2 justify-content-center">
+                                <Button variant="soft-success" size="sm" onClick={() => openPaymentModal(cust)}>
+                                  <i className="ri-hand-coin-line align-bottom"></i> Pay
+                                </Button>
+                                <Button variant="soft-primary" size="sm" onClick={() => openVehiclesModal(cust)}>
+                                  <i className="ri-car-line align-bottom"></i> Vehicles ({cust.vehicles?.length || 0})
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -223,6 +291,20 @@ const Index = ({ customers }: Props) => {
                   />
                 </div>
                 <div className="mb-3">
+                  <Form.Label>Apply to Vehicle Balance (Optional)</Form.Label>
+                  <Form.Select
+                    value={payForm.data.vehicle_id}
+                    onChange={e => payForm.setData('vehicle_id', e.target.value)}
+                  >
+                    <option value="">-- General Account (Auto-Distribute) --</option>
+                    {selectedCust?.vehicles?.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {v.vehicle_number} (Outstanding: PKR {v.balance.toLocaleString(undefined, {minimumFractionDigits: 2})})
+                      </option>
+                    ))}
+                  </Form.Select>
+                </div>
+                <div className="mb-3">
                   <Form.Label>Payment Method</Form.Label>
                   <Form.Select
                     value={payForm.data.payment_method}
@@ -248,6 +330,77 @@ const Index = ({ customers }: Props) => {
                 <Button type="submit" variant="success" disabled={payForm.processing}>Post Collection Entry</Button>
               </Modal.Footer>
             </Form>
+          </Modal>
+
+          {/* Manage Vehicles Modal */}
+          <Modal show={showVehiclesModal} onHide={() => setShowVehiclesModal(false)} size="lg" centered>
+            <Modal.Header closeButton>
+              <Modal.Title className="fw-bold">Manage Vehicles - {selectedCust?.name}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-4">
+                <Form onSubmit={handleAddVehicle} className="row g-3 align-items-end">
+                  <div className="col-sm-8">
+                    <Form.Label className="fw-semibold">Register New Vehicle</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="e.g. LED-4921 or Motor-12"
+                      value={newVehicleNumber}
+                      onChange={e => setNewVehicleNumber(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="col-sm-4">
+                    <Button type="submit" variant="primary" className="w-100" disabled={vehicleProcessing}>
+                      <i className="ri-add-line me-1"></i> Register Vehicle
+                    </Button>
+                  </div>
+                </Form>
+              </div>
+
+              <h6 className="fw-bold mb-3 text-muted">Registered Vehicles Registry</h6>
+              <div className="table-responsive">
+                <Table bordered hover className="align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Vehicle Number</th>
+                      <th className="text-end" style={{ width: '200px' }}>Outstanding Balance</th>
+                      <th className="text-center" style={{ width: '120px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedCust?.vehicles && selectedCust.vehicles.length > 0 ? (
+                      selectedCust.vehicles.map(v => (
+                        <tr key={v.id}>
+                          <td className="fw-semibold">{v.vehicle_number}</td>
+                          <td className="text-end font-monospace fw-bold text-danger">
+                            PKR {v.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="text-center">
+                            <Button 
+                              variant="outline-danger" 
+                              size="sm" 
+                              onClick={() => handleDeleteVehicle(v.id)}
+                              disabled={v.balance > 0 || vehicleProcessing}
+                              title={v.balance > 0 ? 'Cannot remove vehicle with outstanding balance' : 'Remove vehicle'}
+                            >
+                              <i className="ri-delete-bin-line"></i>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="text-center text-muted py-3">No vehicles registered for this customer.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="light" onClick={() => setShowVehiclesModal(false)}>Close</Button>
+            </Modal.Footer>
           </Modal>
         </Container>
       </div>

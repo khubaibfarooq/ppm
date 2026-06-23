@@ -12,6 +12,11 @@ interface Props {
 const Show = ({ shiftLog, reconciliation }: Props) => {
   const { post, processing } = useForm();
 
+  const totalCreditSales = shiftLog.credit_sales
+    ? shiftLog.credit_sales.reduce((sum: number, cs: any) => sum + (cs.total_amount || 0), 0)
+    : 0;
+  const expectedCash = shiftLog.total_revenue - totalCreditSales;
+
   const handleVerify = () => {
     post(route('shift-logs.verify', shiftLog.id));
   };
@@ -92,8 +97,16 @@ const Show = ({ shiftLog, reconciliation }: Props) => {
                   <Table borderless className="mb-0 align-middle">
                     <tbody>
                       <tr>
-                        <td className="text-muted">Total Sales:</td>
+                        <td className="text-muted">Total Sales (Meters):</td>
                         <td className="text-end fw-bold font-monospace">PKR {shiftLog.total_revenue.toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted">Credit Sales (A/R):</td>
+                        <td className="text-end fw-bold font-monospace text-danger">-PKR {totalCreditSales.toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td className="text-muted">Expected Cash:</td>
+                        <td className="text-end fw-bold font-monospace text-success">PKR {expectedCash.toLocaleString()}</td>
                       </tr>
                       <tr>
                         <td className="text-muted">Cash Collected:</td>
@@ -119,7 +132,7 @@ const Show = ({ shiftLog, reconciliation }: Props) => {
                 </Card.Header>
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0">
+                    <Table bordered hover className="align-middle mb-0">
                       <thead className="table-light">
                         <tr>
                           <th>Fuel Product</th>
@@ -207,6 +220,60 @@ const Show = ({ shiftLog, reconciliation }: Props) => {
               </Card>
             </Col>
           </Row>
+
+          {/* Credit Sales Details Table */}
+          {shiftLog.credit_sales && shiftLog.credit_sales.length > 0 && (
+            <Row>
+              <Col lg={12} className="mb-4">
+                <Card className="shadow-sm border-0">
+                  <Card.Header className="bg-transparent border-0 py-3">
+                    <h5 className="card-title mb-0 fw-bold text-info">Customer Credit Sales Details</h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="table-responsive">
+                      <Table bordered hover className="align-middle mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Customer Name</th>
+                            <th>Vehicle (Plate / Reference)</th>
+                            <th>Product</th>
+                            <th className="text-end">Liters Sold</th>
+                            <th className="text-end">Sale Price</th>
+                            <th className="text-end">Total Amount</th>
+                            <th>Slip/Ref Number</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shiftLog.credit_sales.map((cs: any) => (
+                            <tr key={cs.id}>
+                              <td className="fw-semibold text-primary">
+                                {cs.customer.name} {cs.customer.company_name ? `(${cs.customer.company_name})` : ''}
+                              </td>
+                              <td className="font-monospace">
+                                {cs.vehicle ? cs.vehicle.vehicle_number : (cs.vehicle_number || '-')}
+                              </td>
+                              <td>{cs.product.name}</td>
+                              <td className="text-end font-monospace">{cs.liters_sold.toLocaleString()} L</td>
+                              <td className="text-end font-monospace">PKR {cs.sale_price.toLocaleString()}</td>
+                              <td className="text-end font-monospace fw-bold text-info">PKR {cs.total_amount.toLocaleString()}</td>
+                              <td>{cs.slip_number || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="table-light fw-bold font-monospace">
+                          <tr>
+                            <td colSpan={5} className="text-end">Total Credit Sales:</td>
+                            <td className="text-end text-info">PKR {totalCreditSales.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </Table>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          )}
 
           {shiftLog.journal && (
             <Row>

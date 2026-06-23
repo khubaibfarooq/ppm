@@ -209,7 +209,7 @@ const Navdata = () => {
                 ...(hasPermission('view tanks') ? [{ id: "petro-tanks", label: "Tanks Management", link: "/tanks", parentId: "petrostation" }] : []),
                 ...(hasPermission('view machines') ? [{ id: "petro-machines", label: "Dispensers & Nozzles", link: "/machines", parentId: "petrostation" }] : []),
                 ...(hasPermission('view products') ? [{ id: "petro-products", label: "Products & Pricing", link: "/products", parentId: "petrostation" }] : []),
-                
+
                 // Accounting Collapsible Menu
                 ...((hasPermission('view accounts') || hasPermission('view journals')) ? [{
                     id: "petro-accounting",

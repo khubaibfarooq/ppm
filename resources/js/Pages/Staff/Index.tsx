@@ -81,7 +81,7 @@ const Index = ({ staff, roles, stations = [] }: Props) => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0">
+                    <Table bordered hover className="align-middle mb-0">
                       <thead className="table-light">
                         <tr>
                           <th>Code</th>

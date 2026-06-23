@@ -105,6 +105,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('suppliers', SupplierController::class);
     Route::post('customers/{customer}/receive', [CustomerController::class, 'receivePayment'])->name('customers.payment');
     Route::post('suppliers/{supplier}/pay',     [SupplierController::class, 'makePayment'])->name('suppliers.payment');
+    Route::post('customers/{customer}/vehicles', [CustomerController::class, 'addVehicle'])->name('customers.vehicles.store');
+    Route::delete('vehicles/{vehicle}',          [CustomerController::class, 'deleteVehicle'])->name('vehicles.destroy');
 
     // Salary
     Route::get('salaries',              [SalaryController::class, 'index'])->name('salaries.index');

@@ -173,7 +173,7 @@ const Index = ({ suppliers }: Props) => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0">
+                    <Table bordered hover className="align-middle mb-0">
                       <thead className="table-light text-muted">
                         <tr>
                           <th>Supplier Name</th>

@@ -110,7 +110,7 @@ const Index = ({ stations }: Props) => {
               <Card className="shadow-sm border-0">
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0 table-centered">
+                    <Table bordered hover className="align-middle mb-0 table-centered">
                       <thead className="table-light">
                         <tr>
                           <th>ID</th>
@@ -143,9 +143,9 @@ const Index = ({ stations }: Props) => {
                                   <Button variant="soft-warning" size="sm" onClick={() => openEditModal(station)}>
                                     <i className="ri-edit-2-line"></i> Edit
                                   </Button>
-                                  <Button 
-                                    variant={station.is_active ? "soft-danger" : "soft-success"} 
-                                    size="sm" 
+                                  <Button
+                                    variant={station.is_active ? "soft-danger" : "soft-success"}
+                                    size="sm"
                                     onClick={() => toggleStatus(station)}
                                   >
                                     <i className={station.is_active ? "ri-close-circle-line" : "ri-checkbox-circle-line"}></i> {station.is_active ? 'Deactivate' : 'Activate'}
@@ -292,7 +292,7 @@ const Index = ({ stations }: Props) => {
                   </Col>
 
                   <Col lg={12} className="mb-3">
-                    <Form.Check 
+                    <Form.Check
                       type="switch"
                       id="station-status-switch"
                       label="Mark Station as Active"

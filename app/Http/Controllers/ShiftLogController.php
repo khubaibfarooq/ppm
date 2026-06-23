@@ -50,6 +50,9 @@ class ShiftLogController extends Controller
             'dipReadings.tank.product',
             'cashCollections.user',
             'journal.entries.account',
+            'creditSales.customer',
+            'creditSales.vehicle',
+            'creditSales.product',
         ]);
 
         $reconciliation = app(StockReconciliationService::class)->reconcile($shiftLog);
@@ -129,7 +132,11 @@ class ShiftLogController extends Controller
                 'id' => $n->id,
                 'label' => $n->label,
                 'machine' => ['name' => $n->machine->name],
-                'product' => ['name' => $n->product->name],
+                'product' => [
+                    'id' => $n->product_id,
+                    'name' => $n->product->name,
+                    'current_price' => (double) $n->product->current_price,
+                ],
                 'last_reading' => (double) (MeterReading::where('nozzle_id', $n->id)
                     ->where('shift_log_id', $shiftLog->id)
                     ->where('reading_type', 'opening')
@@ -154,11 +161,24 @@ class ShiftLogController extends Controller
             ->where('is_active', true)
             ->get();
 
+        $customers = \App\Models\Customer::where('station_id', $stationId)
+            ->where('is_active', true)
+            ->with(['vehicles' => function($query) {
+                $query->where('is_active', true);
+            }])
+            ->get();
+
+        $products = \App\Models\Product::where('station_id', $stationId)
+            ->where('is_active', true)
+            ->get();
+
         return Inertia::render('Shifts/Close', [
             'shiftLog' => $shiftLog,
             'nozzles' => $nozzles,
             'tanks' => $tanks,
             'suppliers' => $suppliers,
+            'customers' => $customers,
+            'products' => $products,
         ]);
     }
 
@@ -179,6 +199,15 @@ class ShiftLogController extends Controller
             'supplies.*.supplier_id' => 'required|exists:suppliers,id',
             'supplies.*.liters_received' => 'required|numeric|min:0',
             'supplies.*.cost_per_liter' => 'required|numeric|min:0',
+            'credit_sales' => 'nullable|array',
+            'credit_sales.*.customer_id' => 'required|exists:customers,id',
+            'credit_sales.*.vehicle_id' => 'nullable|exists:vehicles,id',
+            'credit_sales.*.product_id' => 'required|exists:products,id',
+            'credit_sales.*.liters_sold' => 'required|numeric|min:0.0001',
+            'credit_sales.*.sale_price' => 'required|numeric|min:0',
+            'credit_sales.*.total_amount' => 'required|numeric|min:0',
+            'credit_sales.*.vehicle_number' => 'nullable|string|max:50',
+            'credit_sales.*.slip_number' => 'nullable|string|max:50',
             'cash_amount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
@@ -332,6 +361,34 @@ class ShiftLogController extends Controller
                     'notes' => $request->input('notes') ?? 'Shift cash collection',
                 ]
             );
+
+            // 4b. Save Credit Sales
+            if ($request->has('credit_sales')) {
+                foreach ($request->input('credit_sales') as $cs) {
+                    \App\Models\CreditSale::create([
+                        'shift_log_id' => $shiftLog->id,
+                        'customer_id' => $cs['customer_id'],
+                        'vehicle_id' => $cs['vehicle_id'] ?? null,
+                        'product_id' => $cs['product_id'],
+                        'liters_sold' => $cs['liters_sold'],
+                        'sale_price' => $cs['sale_price'],
+                        'total_amount' => $cs['total_amount'],
+                        'vehicle_number' => $cs['vehicle_number'] ?? null,
+                        'slip_number' => $cs['slip_number'] ?? null,
+                        'recorded_by' => $userId,
+                    ]);
+
+                    // Update customer balance (Accounts Receivable)
+                    $customer = \App\Models\Customer::findOrFail($cs['customer_id']);
+                    $customer->increment('balance', $cs['total_amount']);
+
+                    // Update vehicle balance if specified
+                    if (!empty($cs['vehicle_id'])) {
+                        $vehicle = \App\Models\Vehicle::findOrFail($cs['vehicle_id']);
+                        $vehicle->increment('balance', $cs['total_amount']);
+                    }
+                }
+            }
 
             // 5. Close Shift & Post Financial Journals
             app(ShiftClosingService::class)->closeShift($shiftLog, $userId);

@@ -82,7 +82,7 @@ const Index = ({ employees, payments }: Props) => {
                 </Card.Header>
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table hover align="middle" className="mb-0">
+                    <Table hover className="align-middle mb-0">
                       <thead className="table-light fs-12">
                         <tr>
                           <th>Employee</th>
@@ -120,7 +120,7 @@ const Index = ({ employees, payments }: Props) => {
                 </Card.Header>
                 <Card.Body>
                   <div className="table-responsive">
-                    <Table bordered hover align="middle" className="mb-0">
+                    <Table bordered hover className="align-middle mb-0">
                       <thead className="table-light fs-12">
                         <tr>
                           <th>Employee</th>
