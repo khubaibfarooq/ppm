@@ -14,7 +14,7 @@ interface Journal {
   total_credit: number;
   is_posted: boolean;
   is_reversed: boolean;
-  createdBy: { name: string };
+  createdBy?: { name: string } | null;
 }
 
 interface Props {
@@ -85,7 +85,7 @@ const JournalList = ({ journals }: Props) => {
                                 <span className="badge bg-warning-subtle text-warning">DRAFT</span>
                               )}
                             </td>
-                            <td>{jv.createdBy.name}</td>
+                            <td>{jv.createdBy?.name || 'System'}</td>
                             <td className="text-center">
                               <div className="d-flex gap-2 justify-content-center">
                                 <Link href={route('journals.show', jv.id)}>

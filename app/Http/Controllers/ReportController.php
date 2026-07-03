@@ -127,7 +127,7 @@ class ReportController extends Controller
                     'name' => $a->name,
                     'balance' => (double)$balance,
                 ];
-            })->filter(fn($item) => $item['balance'] != 0.00);
+            })->filter(fn($item) => $item['balance'] != 0.00)->values();
     }
 
     private function getAccountBalancesByTypeRange(string $type, string $from, string $to)
@@ -160,7 +160,7 @@ class ReportController extends Controller
                     'name' => $a->name,
                     'balance' => (double)$balance,
                 ];
-            })->filter(fn($item) => $item['balance'] != 0.00);
+            })->filter(fn($item) => $item['balance'] != 0.00)->values();
     }
 
     private function getAccountBalanceSum(int $accountId, string $date, string $normalBalance): float
