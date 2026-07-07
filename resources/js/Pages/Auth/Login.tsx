@@ -8,8 +8,8 @@ export default function Login({ status, canResetPassword }: any) {
 
     const [passwordShow, setPasswordShow] = useState<boolean>(false);
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: 'admin@themesbrand.com' || '',
-        password: '12345678' || '',
+        email: '',
+        password: '',
         remember: false,
     });
 
@@ -50,7 +50,7 @@ export default function Login({ status, canResetPassword }: any) {
                                     <Card.Body className='p-4'>
                                         <div className="text-center mt-2">
                                             <h5 className="text-primary">Welcome Back !</h5>
-                                            <p className="text-muted">Sign in to continue to Velzon.</p>
+                                            <p className="text-muted">Sign in to continue to PetroPos Manager.</p>
                                         </div>
                                         {status && <div className="mb-4 font-medium text-sm text-green-600">{status}</div>}
                                         <div className='p-2 mt-4'>
@@ -97,7 +97,7 @@ export default function Login({ status, canResetPassword }: any) {
                                                             autoComplete="current-password"
                                                             onChange={(e: any) => setData('password', e.target.value)}
                                                         />
-                                                       
+
                                                         <Form.Control.Feedback type="invalid" className='d-block mt-2'> {errors.password} </Form.Control.Feedback>
                                                         <button className="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted" type="button" id="password-addon" onClick={() => setPasswordShow(!passwordShow)}><i className="ri-eye-fill align-middle"></i></button>
                                                     </div>
@@ -155,9 +155,7 @@ export default function Login({ status, canResetPassword }: any) {
                                         </div>
                                     </Card.Body>
                                 </Card>
-                                <div className="mt-4 text-center">
-                                    <p className="mb-0">Don't have an account ? <Link href={route('register')} className="fw-semibold text-primary text-decoration-underline"> Signup </Link> </p>
-                                </div>
+
                             </Col>
                         </Row>
                     </Container>
