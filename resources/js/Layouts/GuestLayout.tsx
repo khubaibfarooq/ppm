@@ -22,7 +22,7 @@ export default function Guest({ children }: any) {
                         <Row>
                             <Col lg={12}>
                                 <div className="text-center">
-                                    <p className="mb-0 text-muted">&copy; {new Date().getFullYear()} PetroPos Manager.</p>
+                                    <p className="mb-0 text-muted">&copy; {new Date().getFullYear()} Pak Innovations.</p>
                                 </div>
                             </Col>
                         </Row>
